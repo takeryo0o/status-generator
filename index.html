@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ステータスジェネレーター</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    input, button {
+      font-size: 1rem;
+      margin: 5px;
+    }
+    .output {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      background-color: #f9f9f9;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>ステータスジェネレーター</h1>
+
+  <label for="name">名前: </label>
+  <input type="text" id="name" placeholder="キャラクター名"><br>
+
+  <label for="rank">階級 (1〜20): </label>
+  <input type="number" id="rank" min="1" max="20" value="1">
+  <button id="generateBtn" onclick="generate()" disabled>ステータス生成</button>
+
+  <div class="output" id="output"></div>
+
+  <script>
+    let titles = [];
+
+    // 外部の titles.json を読み込み
+    fetch("titles.json")
+      .then(response => response.json())
+      .then(data => {
+        titles = data;
+        console.log("二つ名読み込み完了:", titles.length, "件");
+        document.getElementById("generateBtn").disabled = false;
+      })
+      .catch(error => {
+        console.error("二つ名の読み込みに失敗しました:", error);
+      });
+
+    function generateStatus(rank) {
+      let basePoints = 0;
+      if (rank >= 1 && rank <= 10) {
+        basePoints = 30 + (rank - 1) * 30;
+      } else if (rank >= 11 && rank <= 17) {
+        basePoints = 300 + (rank - 10) * 20;
+      } else if (rank >= 18 && rank <= 20) {
+        basePoints = 440 + (rank - 17) * 50;
+      } else {
+        return { error: "ランクは1〜20で入力してください。" };
+      }
+
+      const minPoints = Math.floor(basePoints * 0.8);
+      const maxPoints = Math.ceil(basePoints * 1.2);
+      const totalPoints = Math.floor(Math.random() * (maxPoints - minPoints + 1)) + minPoints;
+
+      const keys = ["HP", "MP", "ATK", "DEF", "DEX", "記憶力"];
+      let distribution = { HP: 0, MP: 0, ATK: 0, DEF: 0, DEX: 0, 記憶力: 0 };
+
+      let remaining = totalPoints;
+      while (remaining > 0) {
+        const key = keys[Math.floor(Math.random() * keys.length)];
+        distribution[key]++;
+        remaining--;
+      }
+
+      const finalStatus = {
+        HP: distribution.HP * 3,
+        MP: distribution.MP * 3,
+        ATK: distribution.ATK,
+        DEF: distribution.DEF,
+        DEX: distribution.DEX,
+        記憶力: Math.floor(distribution["記憶力"] / 5)
+      };
+
+      return {
+        rank,
+        totalPoints,
+        distribution,
+        finalStatus
+      };
+    }
+
+    function generate() {
+      if (titles.length === 0) {
+        alert("二つ名がまだ読み込まれていません。もう少し待ってください。");
+        return;
+      }
+
+      const name = document.getElementById("name").value.trim() || "名無し";
+      const rank = parseInt(document.getElementById("rank").value, 10);
+      const result = generateStatus(rank);
+      const output = document.getElementById("output");
+
+      if (result.error) {
+        output.textContent = result.error;
+        return;
+      }
+
+      const title = titles[Math.floor(Math.random() * titles.length)];
+
+      output.innerHTML =
+        `👤 名前: ${name}、${title}\n` +
+        `🔹 階級: ${result.rank}\n` +
+        `🔸 使用ポイント: ${result.totalPoints}\n\n` +
+        `🎲 振り分け:\n` +
+        Object.entries(result.distribution).map(([key, val]) => `${key}: ${val}`).join("\n") +
+        `\n\n📊 最終ステータス:\n` +
+        Object.entries(result.finalStatus).map(([key, val]) => `${key}: ${val}`).join("\n");
+    }
+  </script>
+</body>
+</html>
