@@ -39,7 +39,7 @@
     fetch("titles.json")
       .then(response => response.json())
       .then(data => {
-        titles = data.titles || data; // JSONの形式に対応
+        titles = data.titles || data;
         console.log("二つ名読み込み完了:", titles.length, "件");
         document.getElementById("generateBtn").disabled = false;
       })
@@ -64,7 +64,16 @@
       const totalPoints = Math.floor(Math.random() * (maxPoints - minPoints + 1)) + minPoints;
 
       const keys = ["HP", "MP", "ATK", "DEF", "DEX", "記憶力"];
-      const weights = keys.map(() => Math.random() + 0.5); // 偏りを作るランダム重み (0.5〜1.5)
+      let weights = [];
+
+      // 3%の確率で特化型キャラを生成
+      if (Math.random() < 0.03) {
+        const focusIndex = Math.floor(Math.random() * keys.length);
+        weights = keys.map((_, i) => i === focusIndex ? 5.0 : Math.random() * 0.2 + 0.1);
+        console.log("⚠️ 特化型キャラ生成！（", keys[focusIndex], "に集中）");
+      } else {
+        weights = keys.map(() => Math.random() + 0.5);
+      }
 
       let distribution = {};
       keys.forEach(k => distribution[k] = 0);
