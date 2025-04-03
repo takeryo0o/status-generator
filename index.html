@@ -36,11 +36,10 @@
   <script>
     let titles = [];
 
-    // 外部の titles.json を読み込み
     fetch("titles.json")
       .then(response => response.json())
       .then(data => {
-        titles = data;
+        titles = data.titles || data; // JSONの形式に対応
         console.log("二つ名読み込み完了:", titles.length, "件");
         document.getElementById("generateBtn").disabled = false;
       })
@@ -53,7 +52,7 @@
       if (rank >= 1 && rank <= 10) {
         basePoints = 30 + (rank - 1) * 30;
       } else if (rank >= 11 && rank <= 17) {
-        basePoints = 300 + (rank - 10) * 20;
+        basePoints = 300 + (rank - 10) * 40;
       } else if (rank >= 18 && rank <= 20) {
         basePoints = 440 + (rank - 17) * 50;
       } else {
@@ -65,12 +64,23 @@
       const totalPoints = Math.floor(Math.random() * (maxPoints - minPoints + 1)) + minPoints;
 
       const keys = ["HP", "MP", "ATK", "DEF", "DEX", "記憶力"];
-      let distribution = { HP: 0, MP: 0, ATK: 0, DEF: 0, DEX: 0, 記憶力: 0 };
+      const weights = keys.map(() => Math.random() + 0.5); // 偏りを作るランダム重み (0.5〜1.5)
+
+      let distribution = {};
+      keys.forEach(k => distribution[k] = 0);
 
       let remaining = totalPoints;
       while (remaining > 0) {
-        const key = keys[Math.floor(Math.random() * keys.length)];
-        distribution[key]++;
+        const weightedKeys = keys.map((k, i) => ({ key: k, weight: weights[i] }));
+        const totalWeight = weightedKeys.reduce((sum, item) => sum + item.weight, 0);
+        let rnd = Math.random() * totalWeight;
+        for (const item of weightedKeys) {
+          rnd -= item.weight;
+          if (rnd <= 0) {
+            distribution[item.key]++;
+            break;
+          }
+        }
         remaining--;
       }
 
