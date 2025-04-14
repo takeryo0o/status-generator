@@ -127,19 +127,22 @@
       };
     }
 
-    function showSkill(buildType, stats) {
-      const skill = skills[buildType];
-      if (!skill) return "スキルなし";
-      const formulaName = (skill.formula === "random") ? chooseFormulaWeighted() : skill.formula;
-      const formula = formulas[formulaName];
-      const S = stats[skill.scaling] || 0;
-      const damage = evaluateFormula(formula.damage, S);
-      const cost = evaluateFormula(formula.cost, S);
+    function showSkills(buildType, stats, count) {
+      const skillList = skills[buildType] || [];
+      const shuffled = [...skillList].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, count);
 
-      return `\n\u2728 スキル: ${skill.name}（${skill.category}）\n` +
-             `\u26A1 効果: ${skill.effect}\n` +
-             `\uD83D� 射程: ${skill.range}\n` +
-             `\u2694️ 威力: ${damage} / MP消費: ${cost}（式: ${formulaName}）`;
+      return selected.map(skill => {
+        const formulaName = (skill.formula === "random") ? chooseFormulaWeighted() : skill.formula;
+        const formula = formulas[formulaName];
+        const S = stats[skill.scaling] || 0;
+        const damage = evaluateFormula(formula.damage, S);
+        const cost = evaluateFormula(formula.cost, S);
+        return `\n\u2728 スキル: ${skill.name}（${skill.category}）\n` +
+               `\u26A1 効果: ${skill.effect}\n` +
+               `\uD83D� 射程: ${skill.range}\n` +
+               `\u2694️ 威力: ${damage} / MP消費: ${cost}（式: ${formulaName}）`;
+      }).join("\n\n");
     }
 
     function generate() {
@@ -155,7 +158,7 @@
       const result = generateStatus(rank, buildType);
       const title = titles[Math.floor(Math.random() * titles.length)];
       const output = document.getElementById("output");
-      const skillText = showSkill(buildType, result.finalStatus);
+      const skillText = showSkills(buildType, result.finalStatus, result.finalStatus.記憶力);
 
       output.innerHTML =
         `👤 名前: ${name}、${title}\n` +
@@ -166,7 +169,7 @@
         Object.entries(result.rawDistribution).map(([key, val]) => `${key}: ${val}`).join("\n") +
         `\n\n📊 最終ステータス:\n` +
         Object.entries(result.finalStatus).map(([key, val]) => `${key}: ${val}`).join("\n") +
-        skillText;
+        `\n\n${skillText}`;
     }
   </script>
 </body>
