@@ -1,21 +1,21 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>ステータスジェネレーター</title>
   <style>
     body {
       font-family: sans-serif;
       margin: 20px;
     }
-    input, button, select {
+    input, select, button {
       font-size: 1rem;
       margin: 5px;
     }
     .output {
       margin-top: 20px;
       white-space: pre-wrap;
-      background-color: #f9f9f9;
+      background: #f9f9f9;
       padding: 10px;
       border: 1px solid #ccc;
     }
@@ -43,16 +43,18 @@
     let skills = {};
     let formulas = {};
 
+    // JSONの読み込み
     Promise.all([
-      fetch("titles.json").then(r => r.json()),
-      fetch("buildTypes.json").then(r => r.json()),
-      fetch("skills.json").then(r => r.json()),
-      fetch("formulas.json").then(r => r.json())
-    ]).then(([titleData, buildData, skillData, formulaData]) => {
-      titles = titleData;
-      buildTypes = buildData;
-      skills = skillData;
-      formulas = formulaData;
+      fetch("titles.json").then(res => res.json()),
+      fetch("buildTypes.json").then(res => res.json()),
+      fetch("skills.json").then(res => res.json()),
+      fetch("formulas.json").then(res => res.json())
+    ])
+    .then(([t, b, s, f]) => {
+      titles = t;
+      buildTypes = b;
+      skills = s;
+      formulas = f;
 
       const buildSelect = document.getElementById("build");
       const randomOpt = document.createElement("option");
@@ -60,6 +62,7 @@
       randomOpt.textContent = "ランダム";
       randomOpt.selected = true;
       buildSelect.appendChild(randomOpt);
+
       for (const key in buildTypes) {
         const opt = document.createElement("option");
         opt.value = key;
@@ -69,6 +72,16 @@
 
       document.getElementById("generateBtn").disabled = false;
     });
+
+    function evalFormula(expr, S) {
+      const random = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+      try {
+        return Function("S", "random", `"use strict"; return (${expr});`)(S, random);
+      } catch (e) {
+        console.error("式の評価中にエラー:", expr, e);
+        return "計算エラー";
+      }
+    }
 
     function chooseFormulaWeighted() {
       const table = [
@@ -86,16 +99,6 @@
       }
     }
 
-function evalFormula(expr, S) {
-  const random = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-  try {
-    return Function("S", "random", `"use strict"; return (${expr});`)(S, random);
-  } catch (e) {
-    console.error("式の評価中にエラー:", expr, e);
-    return "計算エラー";
-  }
-}
-
     function generateStatus(rank, buildType) {
       const basePoints = rank * 50;
       const minPoints = Math.floor(basePoints * 0.8);
@@ -104,15 +107,15 @@ function evalFormula(expr, S) {
 
       const ratio = buildTypes[buildType];
       const rawDistribution = {};
-      let usedPoints = 0;
+      let used = 0;
 
       for (const key in ratio) {
         const val = Math.floor(totalPoints * ratio[key]);
         rawDistribution[key] = val;
-        usedPoints += val;
+        used += val;
       }
-      const remainder = totalPoints - usedPoints;
-      rawDistribution["記憶力"] += remainder;
+
+      rawDistribution["記憶力"] += totalPoints - used;
 
       const finalStatus = {
         HP: rawDistribution.HP * 3,
@@ -123,38 +126,34 @@ function evalFormula(expr, S) {
         記憶力: Math.floor(rawDistribution["記憶力"] / 5)
       };
 
-      return {
-        rank,
-        totalPoints,
-        buildType,
-        rawDistribution,
-        finalStatus
-      };
+      return { rank, totalPoints, buildType, rawDistribution, finalStatus };
     }
 
-    function showSkills(buildType, stats, count) {
+    function showSkills(buildType, status, memoryCount) {
       const skillList = skills[buildType] || [];
-      const shuffled = [...skillList].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, count);
+      const selected = [...skillList].sort(() => Math.random() - 0.5).slice(0, memoryCount);
+      let html = "";
 
-      return selected.map(skill => {
-        const formulaName = (skill.formula === "random") ? chooseFormulaWeighted() : skill.formula;
+      selected.forEach(skill => {
+        let formulaName = skill.formula === "random" ? chooseFormulaWeighted() : skill.formula;
         const formula = formulas[formulaName];
-        const S = stats[skill.scaling] || 0;
-        const damage = evaluateFormula(formula.damage, S);
-        const cost = evaluateFormula(formula.cost, S);
-        return `\n\u2728 スキル: ${skill.name}（${skill.category}）\n` +
-               `\u26A1 効果: ${skill.effect}\n` +
-               `\uD83D� 射程: ${skill.range}\n` +
-               `\u2694️ 威力: ${damage} / MP消費: ${cost}（式: ${formulaName}）`;
-      }).join("\n\n");
+        const S = status[skill.scaling];
+        const damage = evalFormula(formula.damage, S);
+        const cost = evalFormula(formula.cost, S);
+
+        html += `✨ スキル: ${skill.name}（${skill.category}）\n`;
+        html += `⚡ 効果: ${skill.effect}\n`;
+        html += `📏 射程: ${skill.range}\n`;
+        html += `⚔️ 威力: ${damage} / MP消費: ${cost}（式: ${formulaName}）\n\n`;
+      });
+
+      return html;
     }
 
     function generate() {
       const name = document.getElementById("name").value.trim() || "名無し";
       const rank = parseInt(document.getElementById("rank").value, 10);
       let buildType = document.getElementById("build").value;
-
       if (buildType === "__RANDOM__") {
         const keys = Object.keys(buildTypes);
         buildType = keys[Math.floor(Math.random() * keys.length)];
@@ -163,7 +162,6 @@ function evalFormula(expr, S) {
       const result = generateStatus(rank, buildType);
       const title = titles[Math.floor(Math.random() * titles.length)];
       const output = document.getElementById("output");
-      const skillText = showSkills(buildType, result.finalStatus, result.finalStatus.記憶力);
 
       output.innerHTML =
         `👤 名前: ${name}、${title}\n` +
@@ -171,10 +169,11 @@ function evalFormula(expr, S) {
         `🔹 階級: ${result.rank}\n` +
         `🔸 使用ポイント: ${result.totalPoints}\n\n` +
         `🎲 振り分け:\n` +
-        Object.entries(result.rawDistribution).map(([key, val]) => `${key}: ${val}`).join("\n") +
+        Object.entries(result.rawDistribution).map(([k, v]) => `${k}: ${v}`).join("\n") +
         `\n\n📊 最終ステータス:\n` +
-        Object.entries(result.finalStatus).map(([key, val]) => `${key}: ${val}`).join("\n") +
-        `\n\n${skillText}`;
+        Object.entries(result.finalStatus).map(([k, v]) => `${k}: ${v}`).join("\n") +
+        `\n\n` +
+        showSkills(result.buildType, result.finalStatus, result.finalStatus.記憶力);
     }
   </script>
 </body>
