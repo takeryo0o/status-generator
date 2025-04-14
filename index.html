@@ -86,10 +86,15 @@
       }
     }
 
-    function evaluateFormula(expr, S) {
-      return Function("S", "random", `return "use strict"; (${expr})`)(S, (min, max) =>
-        Math.floor(Math.random() * (max - min + 1)) + min);
-    }
+function evalFormula(expr, S) {
+  const random = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  try {
+    return Function("S", "random", `"use strict"; return (${expr});`)(S, random);
+  } catch (e) {
+    console.error("式の評価中にエラー:", expr, e);
+    return "計算エラー";
+  }
+}
 
     function generateStatus(rank, buildType) {
       const basePoints = rank * 50;
