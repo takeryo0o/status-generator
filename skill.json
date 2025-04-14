@@ -1,0 +1,44 @@
+{
+  "魔法型": [
+    {
+      "name": "雷鳴の矢",
+      "category": "黒魔法",
+      "scaling": "MP",
+      "formula": "random",
+      "range": "前方3マス",
+      "effect": "敵単体に雷属性の魔法ダメージを与える。"
+    },
+    {
+      "name": "虚無の炎",
+      "category": "黒魔法",
+      "scaling": "MP",
+      "formula": "Rage",
+      "range": "自分中心2マス",
+      "effect": "範囲内の敵に高威力の炎属性ダメージ。"
+    },
+    {
+      "name": "冷気の渦",
+      "category": "黒魔法",
+      "scaling": "MP",
+      "formula": "Control",
+      "range": "扇状3マス",
+      "effect": "前方広範囲に氷属性のダメージ。"
+    },
+    {
+      "name": "影縫いの霧",
+      "category": "黒魔法",
+      "scaling": "MP",
+      "formula": "Balance",
+      "range": "前方2マス",
+      "effect": "敵の行動を1ターン封じる黒霧を放つ。"
+    },
+    {
+      "name": "破滅の稲妻",
+      "category": "黒魔法",
+      "scaling": "MP",
+      "formula": "Gamble",
+      "range": "直線射程5マス",
+      "effect": "雷撃で直線上の敵を貫く、当たれば大ダメージ。"
+    }
+  ]
+}
