@@ -8,7 +8,7 @@
       font-family: sans-serif;
       margin: 20px;
     }
-    input, button {
+    input, button, select {
       font-size: 1rem;
       margin: 5px;
     }
@@ -27,113 +27,108 @@
   <label for="name">名前: </label>
   <input type="text" id="name" placeholder="キャラクター名"><br>
 
-  <label for="rank">階級 (1〜20): </label>
-  <input type="number" id="rank" min="1" max="20" value="1">
+  <label for="rank">階級 (1以上): </label>
+  <input type="number" id="rank" min="1" value="1"><br>
+
+  <label for="build">ビルドタイプ: </label>
+  <select id="build"></select><br>
+
   <button id="generateBtn" onclick="generate()" disabled>ステータス生成</button>
 
   <div class="output" id="output"></div>
 
   <script>
     let titles = [];
+    let buildTypes = {};
 
+    // タイトル読み込み
     fetch("titles.json")
       .then(response => response.json())
       .then(data => {
-        titles = data.titles || data;
-        console.log("二つ名読み込み完了:", titles.length, "件");
-        document.getElementById("generateBtn").disabled = false;
-      })
-      .catch(error => {
-        console.error("二つ名の読み込みに失敗しました:", error);
+        titles = data;
+        checkReady();
       });
 
-    function generateStatus(rank) {
-      let basePoints = 0;
-      if (rank >= 1 && rank <= 10) {
-        basePoints = 30 + (rank - 1) * 30;
-      } else if (rank >= 11 && rank <= 17) {
-        basePoints = 300 + (rank - 10) * 20;
-      } else if (rank >= 18 && rank <= 20) {
-        basePoints = 440 + (rank - 17) * 50;
-      } else {
-        return { error: "ランクは1〜20で入力してください。" };
-      }
+    // ビルドタイプ読み込み
+    fetch("buildTypes.json")
+      .then(response => response.json())
+      .then(data => {
+        buildTypes = data;
+        const buildSelect = document.getElementById("build");
+        for (const key in buildTypes) {
+          const opt = document.createElement("option");
+          opt.value = key;
+          opt.textContent = key;
+          buildSelect.appendChild(opt);
+        }
+        checkReady();
+      });
 
+    function checkReady() {
+      if (titles.length > 0 && Object.keys(buildTypes).length > 0) {
+        document.getElementById("generateBtn").disabled = false;
+      }
+    }
+
+    function generateStatus(rank, buildType) {
+      const basePoints = rank * 50;
       const minPoints = Math.floor(basePoints * 0.8);
-      const maxPoints = Math.ceil(basePoints * 1.2);
+      const maxPoints = Math.ceil(basePoints * 1.5);
       const totalPoints = Math.floor(Math.random() * (maxPoints - minPoints + 1)) + minPoints;
 
-      const keys = ["HP", "MP", "ATK", "DEF", "DEX", "記憶力"];
-      let weights = [];
+      const ratio = buildTypes[buildType];
+      const rawDistribution = {};
+      let usedPoints = 0;
 
-      // 3%の確率で特化型キャラを生成
-      if (Math.random() < 0.03) {
-        const focusIndex = Math.floor(Math.random() * keys.length);
-        weights = keys.map((_, i) => i === focusIndex ? 5.0 : Math.random() * 0.2 + 0.1);
-        console.log("⚠️ 特化型キャラ生成！（", keys[focusIndex], "に集中）");
-      } else {
-        weights = keys.map(() => Math.random() + 0.5);
+      for (const key in ratio) {
+        const val = Math.floor(totalPoints * ratio[key]);
+        rawDistribution[key] = val;
+        usedPoints += val;
       }
 
-      let distribution = {};
-      keys.forEach(k => distribution[k] = 0);
-
-      let remaining = totalPoints;
-      while (remaining > 0) {
-        const weightedKeys = keys.map((k, i) => ({ key: k, weight: weights[i] }));
-        const totalWeight = weightedKeys.reduce((sum, item) => sum + item.weight, 0);
-        let rnd = Math.random() * totalWeight;
-        for (const item of weightedKeys) {
-          rnd -= item.weight;
-          if (rnd <= 0) {
-            distribution[item.key]++;
-            break;
-          }
-        }
-        remaining--;
-      }
+      // 余ったポイントを記憶力に追加（調整）
+      const remainder = totalPoints - usedPoints;
+      rawDistribution["記憶力"] += remainder;
 
       const finalStatus = {
-        HP: distribution.HP * 3,
-        MP: distribution.MP * 3,
-        ATK: distribution.ATK,
-        DEF: distribution.DEF,
-        DEX: distribution.DEX,
-        記憶力: Math.floor(distribution["記憶力"] / 5)
+        HP: rawDistribution.HP * 3,
+        MP: rawDistribution.MP * 3,
+        ATK: rawDistribution.ATK,
+        DEF: rawDistribution.DEF,
+        DEX: rawDistribution.DEX,
+        記憶力: Math.floor(rawDistribution["記憶力"] / 5)
       };
 
       return {
         rank,
         totalPoints,
-        distribution,
+        buildType,
+        rawDistribution,
         finalStatus
       };
     }
 
     function generate() {
-      if (titles.length === 0) {
-        alert("二つ名がまだ読み込まれていません。もう少し待ってください。");
-        return;
-      }
-
       const name = document.getElementById("name").value.trim() || "名無し";
       const rank = parseInt(document.getElementById("rank").value, 10);
-      const result = generateStatus(rank);
-      const output = document.getElementById("output");
+      const buildType = document.getElementById("build").value;
 
-      if (result.error) {
-        output.textContent = result.error;
+      if (!buildType || !buildTypes[buildType]) {
+        alert("ビルドタイプが無効です");
         return;
       }
 
+      const result = generateStatus(rank, buildType);
       const title = titles[Math.floor(Math.random() * titles.length)];
+      const output = document.getElementById("output");
 
       output.innerHTML =
         `👤 名前: ${name}、${title}\n` +
+        `🏷️ ビルドタイプ: ${result.buildType}\n` +
         `🔹 階級: ${result.rank}\n` +
         `🔸 使用ポイント: ${result.totalPoints}\n\n` +
         `🎲 振り分け:\n` +
-        Object.entries(result.distribution).map(([key, val]) => `${key}: ${val}`).join("\n") +
+        Object.entries(result.rawDistribution).map(([key, val]) => `${key}: ${val}`).join("\n") +
         `\n\n📊 最終ステータス:\n` +
         Object.entries(result.finalStatus).map(([key, val]) => `${key}: ${val}`).join("\n");
     }
