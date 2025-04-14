@@ -41,7 +41,7 @@
     let titles = [];
     let buildTypes = {};
 
-    // タイトル読み込み
+    // 二つ名の読み込み
     fetch("titles.json")
       .then(response => response.json())
       .then(data => {
@@ -49,18 +49,28 @@
         checkReady();
       });
 
-    // ビルドタイプ読み込み
+    // ビルドタイプの読み込み
     fetch("buildTypes.json")
       .then(response => response.json())
       .then(data => {
         buildTypes = data;
         const buildSelect = document.getElementById("build");
+
+        // 「ランダム」オプション（デフォルト選択）
+        const randomOpt = document.createElement("option");
+        randomOpt.value = "__RANDOM__";
+        randomOpt.textContent = "ランダム";
+        randomOpt.selected = true;
+        buildSelect.appendChild(randomOpt);
+
+        // その他のビルドを追加
         for (const key in buildTypes) {
           const opt = document.createElement("option");
           opt.value = key;
           opt.textContent = key;
           buildSelect.appendChild(opt);
         }
+
         checkReady();
       });
 
@@ -86,7 +96,7 @@
         usedPoints += val;
       }
 
-      // 余ったポイントを記憶力に追加（調整）
+      // 余りを記憶力へ
       const remainder = totalPoints - usedPoints;
       rawDistribution["記憶力"] += remainder;
 
@@ -111,11 +121,11 @@
     function generate() {
       const name = document.getElementById("name").value.trim() || "名無し";
       const rank = parseInt(document.getElementById("rank").value, 10);
-      const buildType = document.getElementById("build").value;
+      let buildType = document.getElementById("build").value;
 
-      if (!buildType || !buildTypes[buildType]) {
-        alert("ビルドタイプが無効です");
-        return;
+      if (buildType === "__RANDOM__") {
+        const keys = Object.keys(buildTypes);
+        buildType = keys[Math.floor(Math.random() * keys.length)];
       }
 
       const result = generateStatus(rank, buildType);
