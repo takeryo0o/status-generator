@@ -1,44 +1,32 @@
 {
   "魔法型": [
-    {
-      "name": "雷鳴の矢",
-      "category": "黒魔法",
-      "scaling": "MP",
-      "formula": "random",
-      "range": "前方3マス",
-      "effect": "敵単体に雷属性の魔法ダメージを与える。"
-    },
-    {
-      "name": "虚無の炎",
-      "category": "黒魔法",
-      "scaling": "MP",
-      "formula": "Rage",
-      "range": "自分中心2マス",
-      "effect": "範囲内の敵に高威力の炎属性ダメージ。"
-    },
-    {
-      "name": "冷気の渦",
-      "category": "黒魔法",
-      "scaling": "MP",
-      "formula": "Control",
-      "range": "扇状3マス",
-      "effect": "前方広範囲に氷属性のダメージ。"
-    },
-    {
-      "name": "影縫いの霧",
-      "category": "黒魔法",
-      "scaling": "MP",
-      "formula": "Balance",
-      "range": "前方2マス",
-      "effect": "敵の行動を1ターン封じる黒霧を放つ。"
-    },
-    {
-      "name": "破滅の稲妻",
-      "category": "黒魔法",
-      "scaling": "MP",
-      "formula": "Gamble",
-      "range": "直線射程5マス",
-      "effect": "雷撃で直線上の敵を貫く、当たれば大ダメージ。"
-    }
+    { "name": "雷鳴の矢", "category": "黒魔法", "scaling": "MP", "formula": "random", "range": "前方3マス", "effect": "敵単体に雷属性の魔法ダメージを与える。" },
+    { "name": "虚無の炎", "category": "黒魔法", "scaling": "MP", "formula": "Rage", "range": "自分中心2マス", "effect": "範囲内の敵に高威力の炎属性ダメージ。" },
+    { "name": "冷気の渦", "category": "黒魔法", "scaling": "MP", "formula": "Control", "range": "扇状3マス", "effect": "前方広範囲に氷属性のダメージを与える。" },
+    { "name": "影縫いの霧", "category": "黒魔法", "scaling": "MP", "formula": "Balance", "range": "前方2マス", "effect": "敵の行動を1ターン封じる黒霧を放つ。" },
+    { "name": "破滅の稲妻", "category": "黒魔法", "scaling": "MP", "formula": "Gamble", "range": "直線射程5マス", "effect": "雷撃で直線上の敵を貫く、当たれば大ダメージ。" },
+    { "name": "焦熱の壁", "category": "黒魔法", "scaling": "MP", "formula": "Burst", "range": "横3マス", "effect": "敵の進行を阻む熱の壁を発生させる。" },
+    { "name": "魂の叫び", "category": "黒魔法", "scaling": "MP", "formula": "Control", "range": "自分中心1マス", "effect": "精神攻撃で範囲内の敵を混乱させる。" }
+  ],
+  "近接型": [
+    { "name": "連続突き", "category": "近接技能", "scaling": "ATK", "formula": "Balance", "range": "前方1マス", "effect": "敵に連続して突きを浴びせる。" },
+    { "name": "渾身斬り", "category": "近接技能", "scaling": "ATK", "formula": "Rage", "range": "前方2マス", "effect": "重たい一撃を放ち、防御を貫通する。" },
+    { "name": "風車斬", "category": "近接技能", "scaling": "ATK", "formula": "Burst", "range": "自分中心1マス", "effect": "回転しながら周囲の敵を斬り払う。" },
+    { "name": "斬撃波", "category": "近接技能", "scaling": "ATK", "formula": "Control", "range": "直線4マス", "effect": "遠距離にも届く衝撃波を飛ばす。" },
+    { "name": "強襲跳躍", "category": "近接技能", "scaling": "ATK", "formula": "Gamble", "range": "3マス前に跳躍して攻撃", "effect": "奇襲の一撃で敵に高ダメージを与える。" }
+  ],
+  "タンク型": [
+    { "name": "鉄壁の守り", "category": "防御技能", "scaling": "DEF", "formula": "Control", "range": "自分のみ", "effect": "このターンの被ダメージを半減する。" },
+    { "name": "挑発", "category": "防御技能", "scaling": "DEF", "formula": "Balance", "range": "周囲3マス", "effect": "敵のターゲットを自分に集中させる。" },
+    { "name": "防壁衝撃", "category": "防御技能", "scaling": "DEF", "formula": "Burst", "range": "前方1マス", "effect": "盾で敵を強打し、行動を阻害する。" },
+    { "name": "鋼の障壁", "category": "防御技能", "scaling": "DEF", "formula": "Control", "range": "前方2マス", "effect": "壁を出現させ進路を遮る。" },
+    { "name": "仁王立ち", "category": "防御技能", "scaling": "DEF", "formula": "Gamble", "range": "自分のみ", "effect": "確率で全ダメージを無効化する。" }
+  ],
+  "補助型": [
+    { "name": "癒しの風", "category": "白魔法", "scaling": "記憶力", "formula": "Control", "range": "周囲1マス味方", "effect": "味方のHPを少し回復する風を送る。" },
+    { "name": "再生の光", "category": "白魔法", "scaling": "記憶力", "formula": "Balance", "range": "単体味方", "effect": "ターン毎にHPを回復する効果を与える。" },
+    { "name": "神聖なる歌", "category": "白魔法", "scaling": "記憶力", "formula": "Burst", "range": "全体味方", "effect": "味方全員のステータスを一時的に上昇させる。" },
+    { "name": "加速の旋律", "category": "白魔法", "scaling": "記憶力", "formula": "Burst", "range": "味方2体", "effect": "行動順を早める旋律で支援する。" },
+    { "name": "沈黙解除", "category": "白魔法", "scaling": "記憶力", "formula": "Control", "range": "隣接1体", "effect": "沈黙や封印状態を解除する魔法。" }
   ]
 }
