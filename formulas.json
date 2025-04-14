@@ -1,0 +1,22 @@
+{
+  "Burst": {
+    "damage": "floor(S * 0.6) + random(1,8)",
+    "cost": "floor(S * 0.3)"
+  },
+  "Balance": {
+    "damage": "floor(S * 0.5) + random(1,6)",
+    "cost": "floor(S * 0.4)"
+  },
+  "Control": {
+    "damage": "floor(S * 0.4) + random(1,10)",
+    "cost": "floor(S * 0.5)"
+  },
+  "Rage": {
+    "damage": "floor(S * 0.8) + random(1,12)",
+    "cost": "floor(S * 0.6)"
+  },
+  "Gamble": {
+    "damage": "floor(S * 1.2) + random(1,20)",
+    "cost": "floor(S * 0.2)"
+  }
+}
