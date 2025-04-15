@@ -134,26 +134,38 @@ function evalFormula(expr, S, rank) {
       return { rank, totalPoints, buildType, rawDistribution, finalStatus };
     }
 
-    function showSkills(buildType, status, memoryCount) {
-      const skillList = skills[buildType] || [];
-      const selected = [...skillList].sort(() => Math.random() - 0.5).slice(0, memoryCount);
-      let html = "";
+    function showSkills(buildType, status, memoryCount, rank) {
+  const skillList = skills[buildType] || [];
+  const selected = [...skillList].sort(() => Math.random() - 0.5).slice(0, memoryCount);
+  let html = "";
 
-      selected.forEach(skill => {
-        let formulaName = skill.formula === "random" ? chooseFormulaWeighted() : skill.formula;
-        const formula = formulas[formulaName];
-        const S = status[skill.scaling] ?? 0;
-        const damage = evalFormula(formula.damage, S);
-        const cost = evalFormula(formula.cost, S);
+  selected.forEach(skill => {
+    // フォーミュラ名を決定（ランダム or 固定）
+    let formulaName = skill.formula === "random" ? chooseFormulaWeighted() : skill.formula;
+    const formula = formulas[formulaName];
 
-        html += `✨ スキル: ${skill.name}（${skill.category}）\n`;
-        html += `⚡ 効果: ${skill.effect}\n`;
-        html += `📏 射程: ${skill.range}\n`;
-        html += `⚔️ 威力: ${damage} / MP消費: ${cost}（式: ${formulaName}）\n\n`;
-      });
+    // スケーリング対象のステータスを取得（なければ0にフォールバック）
+    const S = status[skill.scaling] ?? 0;
 
-      return html;
+    // デバッグログ（不要なら削除OK）
+    if (typeof S !== "number") {
+      console.warn("無効なスケーリング指定:", skill.scaling, "→ status:", status);
     }
+
+    // ダメージ＆消費MPを計算
+    const damage = evalFormula(formula.damage, S, rank);
+    const cost = evalFormula(formula.cost, S, rank);
+
+    // 出力HTML生成
+    html += `✨ スキル: ${skill.name}（${skill.category}）\n`;
+    html += `⚡ 効果: ${skill.effect}\n`;
+    html += `📏 射程: ${skill.range}\n`;
+    html += `⚔️ 威力: ${damage} / MP消費: ${cost}（式: ${formulaName}）\n\n`;
+  });
+
+  return html;
+}
+
 
     function generate() {
       const name = document.getElementById("name").value.trim() || "名無し";
