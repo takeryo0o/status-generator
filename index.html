@@ -73,15 +73,20 @@
       document.getElementById("generateBtn").disabled = false;
     });
 
-    function evalFormula(expr, S) {
-      const random = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-      try {
-        return Function("S", "random", `"use strict"; return (${expr});`)(S, random);
-      } catch (e) {
-        console.error("式の評価中にエラー:", expr, e);
-        return "計算エラー";
-      }
-    }
+function evalFormula(expr, S, rank) {
+  const random = (min, max) => {
+    // スケーリング上限を階級に応じて拡張
+    const scaledMax = Math.floor(max * (1 + rank / 10)); // 例: rank 10 → 2倍
+    return Math.floor(Math.random() * (scaledMax - min + 1)) + min;
+  };
+
+  try {
+    return Function("S", "random", `"use strict"; return (${expr});`)(S, random);
+  } catch (e) {
+    console.error("式の評価中にエラー:", expr, e);
+    return "計算エラー";
+  }
+}
 
     function chooseFormulaWeighted() {
       const table = [
