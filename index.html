@@ -142,7 +142,7 @@ function evalFormula(expr, S, rank) {
       selected.forEach(skill => {
         let formulaName = skill.formula === "random" ? chooseFormulaWeighted() : skill.formula;
         const formula = formulas[formulaName];
-        const S = status[skill.scaling];
+        const S = status[skill.scaling] ?? 0;
         const damage = evalFormula(formula.damage, S);
         const cost = evalFormula(formula.cost, S);
 
