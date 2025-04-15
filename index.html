@@ -190,7 +190,8 @@ function evalFormula(expr, S, rank) {
         `\n\n📊 最終ステータス:\n` +
         Object.entries(result.finalStatus).map(([k, v]) => `${k}: ${v}`).join("\n") +
         `\n\n` +
-        showSkills(result.buildType, result.finalStatus, result.finalStatus.記憶力);
+        showSkills(result.buildType, result.finalStatus, result.finalStatus.記憶力, result.rank)
+
     }
   </script>
 </body>
