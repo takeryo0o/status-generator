@@ -2,13 +2,13 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ステータスジェネレーター</title>
+  <title>ステータスジェネレーター（完全自動スキル生成）</title>
   <style>
     body {
       font-family: sans-serif;
       margin: 20px;
     }
-    input, select, button {
+    input, select, button, textarea {
       font-size: 1rem;
       margin: 5px;
     }
@@ -22,7 +22,7 @@
   </style>
 </head>
 <body>
-  <h1>ステータスジェネレーター</h1>
+  <h1>ステータスジェネレーター（完全自動スキル生成）</h1>
 
   <label for="name">名前: </label>
   <input type="text" id="name" placeholder="キャラクター名"><br>
@@ -38,55 +38,25 @@
   <div class="output" id="output"></div>
 
   <script>
-    let titles = [];
-    let buildTypes = {};
-    let skills = {};
-    let formulas = {};
+    let titles = [], buildTypes = {}, formulas = {};
+    let meleePrefixes = [], meleeSuffixes = [], magicPrefixes = [], magicSuffixes = [];
 
-    // JSONの読み込み
-    Promise.all([
-      fetch("titles.json").then(res => res.json()),
-      fetch("buildTypes.json").then(res => res.json()),
-      fetch("skills.json").then(res => res.json()),
-      fetch("formulas.json").then(res => res.json())
-    ])
-    .then(([t, b, s, f]) => {
-      titles = t;
-      buildTypes = b;
-      skills = s;
-      formulas = f;
+    function randomFrom(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
 
-      const buildSelect = document.getElementById("build");
-      const randomOpt = document.createElement("option");
-      randomOpt.value = "__RANDOM__";
-      randomOpt.textContent = "ランダム";
-      randomOpt.selected = true;
-      buildSelect.appendChild(randomOpt);
-
-      for (const key in buildTypes) {
-        const opt = document.createElement("option");
-        opt.value = key;
-        opt.textContent = key;
-        buildSelect.appendChild(opt);
+    function evalFormula(expr, S, rank) {
+      const random = (min, max) => {
+        const scaledMax = Math.floor(max * (1 + rank / 10));
+        return Math.floor(Math.random() * (scaledMax - min + 1)) + min;
+      };
+      try {
+        return Function("S", "random", `"use strict"; return (${expr});`)(S, random);
+      } catch (e) {
+        console.error("式の評価エラー:", expr, e);
+        return "計算エラー";
       }
-
-      document.getElementById("generateBtn").disabled = false;
-    });
-
-function evalFormula(expr, S, rank) {
-  const random = (min, max) => {
-    // スケーリング上限を階級に応じて拡張
-    const scaledMax = Math.floor(max * (1 + rank / 10)); // 例: rank 10 → 2倍
-    return Math.floor(Math.random() * (scaledMax - min + 1)) + min;
-  };
-
-  try {
-    return Function("S", "random", `"use strict"; return (${expr});`)(S, random);
-  } catch (e) {
-    console.error("式の評価中にエラー:", expr, e);
-    return "計算エラー";
-  }
-}
+    }
 
     function chooseFormulaWeighted() {
       const table = [
@@ -104,68 +74,64 @@ function evalFormula(expr, S, rank) {
       }
     }
 
+    function generateRandomSkill(status, rank, buildType) {
+      const descTemplates = [
+        "{prefix}の{suffix}で敵を貫く。",
+        "{prefix}{suffix}を解き放ち、前方を一掃する。",
+        "{prefix}の力が宿る{suffix}を叩き込む。",
+        "強烈な{prefix}{suffix}で相手を打ちのめす。",
+        "{prefix}{suffix}を放ち、敵に重圧を与える。"
+      ];
+
+      let prefixes = buildType === "魔法型" ? magicPrefixes : meleePrefixes;
+      let suffixes = buildType === "魔法型" ? magicSuffixes : meleeSuffixes;
+
+      const prefix = randomFrom(prefixes);
+      const suffix = randomFrom(suffixes);
+      const name = prefix + suffix;
+      const description = randomFrom(descTemplates).replace("{prefix}", prefix).replace("{suffix}", suffix);
+
+      const range = randomFrom([
+        "前方1マス", "前方3マス", "自分中心2マス", "直線4マス", "自分のみ"
+      ]);
+      const scalingOptions = ["MP", "ATK", "記憶力"];
+      const scaling = randomFrom(scalingOptions);
+      const formulaName = chooseFormulaWeighted();
+      const formula = formulas[formulaName];
+
+      const S = status[scaling] ?? 0;
+      const damage = evalFormula(formula.damage, S, rank);
+      const cost = evalFormula(formula.cost, S, rank);
+
+      return {
+        name,
+        description,
+        range,
+        scaling,
+        formula: formulaName,
+        damage,
+        cost
+      };
+    }
+
     function generateStatus(rank, buildType) {
       const basePoints = rank * 50;
       const minPoints = Math.floor(basePoints * 0.8);
       const maxPoints = Math.ceil(basePoints * 1.5);
       const totalPoints = Math.floor(Math.random() * (maxPoints - minPoints + 1)) + minPoints;
-
       const ratio = buildTypes[buildType];
-      const rawDistribution = {};
-      let used = 0;
-
+      const raw = {};
       for (const key in ratio) {
-        const val = Math.floor(totalPoints * ratio[key]);
-        rawDistribution[key] = val;
-        used += val;
+        raw[key] = Math.floor(totalPoints * ratio[key]);
       }
-
-      rawDistribution["記憶力"] += totalPoints - used;
-
-      const finalStatus = {
-        HP: rawDistribution.HP * 3,
-        MP: rawDistribution.MP * 3,
-        ATK: rawDistribution.ATK,
-        DEF: rawDistribution.DEF,
-        DEX: rawDistribution.DEX,
-        記憶力: Math.floor(rawDistribution["記憶力"] / 5)
+      const rest = totalPoints - Object.values(raw).reduce((a, b) => a + b, 0);
+      raw["記憶力"] += rest;
+      const final = {
+        HP: raw.HP * 3, MP: raw.MP * 3, ATK: raw.ATK, DEF: raw.DEF, DEX: raw.DEX,
+        記憶力: Math.floor(raw["記憶力"] / 5)
       };
-
-      return { rank, totalPoints, buildType, rawDistribution, finalStatus };
+      return { rank, totalPoints, buildType, rawDistribution: raw, finalStatus: final };
     }
-
-    function showSkills(buildType, status, memoryCount, rank) {
-  const skillList = skills[buildType] || [];
-  const selected = [...skillList].sort(() => Math.random() - 0.5).slice(0, memoryCount);
-  let html = "";
-
-  selected.forEach(skill => {
-    // フォーミュラ名を決定（ランダム or 固定）
-    let formulaName = skill.formula === "random" ? chooseFormulaWeighted() : skill.formula;
-    const formula = formulas[formulaName];
-
-    // スケーリング対象のステータスを取得（なければ0にフォールバック）
-    const S = status[skill.scaling] ?? 0;
-
-    // デバッグログ（不要なら削除OK）
-    if (typeof S !== "number") {
-      console.warn("無効なスケーリング指定:", skill.scaling, "→ status:", status);
-    }
-
-    // ダメージ＆消費MPを計算
-    const damage = evalFormula(formula.damage, S, rank);
-    const cost = evalFormula(formula.cost, S, rank);
-
-    // 出力HTML生成
-    html += `✨ スキル: ${skill.name}（${skill.category}）\n`;
-    html += `⚡ 効果: ${skill.effect}\n`;
-    html += `📏 射程: ${skill.range}\n`;
-    html += `⚔️ 威力: ${damage} / MP消費: ${cost}（式: ${formulaName}）\n\n`;
-  });
-
-  return html;
-}
-
 
     function generate() {
       const name = document.getElementById("name").value.trim() || "名無し";
@@ -175,24 +141,78 @@ function evalFormula(expr, S, rank) {
         const keys = Object.keys(buildTypes);
         buildType = keys[Math.floor(Math.random() * keys.length)];
       }
-
       const result = generateStatus(rank, buildType);
-      const title = titles[Math.floor(Math.random() * titles.length)];
+      const title = randomFrom(titles);
       const output = document.getElementById("output");
 
-      output.innerHTML =
-        `👤 名前: ${name}、${title}\n` +
-        `🏷️ ビルドタイプ: ${result.buildType}\n` +
-        `🔹 階級: ${result.rank}\n` +
-        `🔸 使用ポイント: ${result.totalPoints}\n\n` +
-        `🎲 振り分け:\n` +
-        Object.entries(result.rawDistribution).map(([k, v]) => `${k}: ${v}`).join("\n") +
-        `\n\n📊 最終ステータス:\n` +
-        Object.entries(result.finalStatus).map(([k, v]) => `${k}: ${v}`).join("\n") +
-        `\n\n` +
-        showSkills(result.buildType, result.finalStatus, result.finalStatus.記憶力, result.rank)
+      let html = `👤 名前: ${name}、${title}
+🏷️ ビルドタイプ: ${result.buildType}
+🔹 階級: ${result.rank}
+🔸 使用ポイント: ${result.totalPoints}
 
+🎲 振り分け:
+`;
+      for (const [k, v] of Object.entries(result.rawDistribution)) html += `${k}: ${v}
+`;
+      html += `
+📊 最終ステータス:
+`;
+      for (const [k, v] of Object.entries(result.finalStatus)) html += `${k}: ${v}
+`;
+
+      html += `
+🧪 自動生成スキル:
+`;
+      for (let i = 0; i < result.finalStatus.記憶力; i++) {
+        const sk = generateRandomSkill(result.finalStatus, result.rank, buildType);
+        html += `✨ スキル名: <input type="text" value="${sk.name}">（${buildType}）
+`;
+        html += `📝 説明: <textarea rows="2" cols="40">${sk.description}</textarea>
+`;
+        html += `📏 射程: ${sk.range}
+`;
+        html += `⚖ スケーリング: ${sk.scaling}
+`;
+        html += `⚔ 威力: ${sk.damage} / 🔋 MP消費: ${sk.cost}（式: ${sk.formula}）
+
+`;
+      }
+
+      output.innerHTML = html;
     }
+
+    Promise.all([
+      fetch("titles.json").then(res => res.json()),
+      fetch("buildTypes.json").then(res => res.json()),
+      fetch("formulas.json").then(res => res.json()),
+      fetch("melee_prefixes.json").then(res => res.json()),
+      fetch("melee_suffixes.json").then(res => res.json()),
+      fetch("prefixes.json").then(res => res.json()),
+      fetch("suffixes.json").then(res => res.json())
+    ])
+    .then(([t, b, f, mpref, msuff, magpref, magsuff]) => {
+      titles = t;
+      buildTypes = b;
+      formulas = f;
+      meleePrefixes = mpref;
+      meleeSuffixes = msuff;
+      magicPrefixes = magpref;
+      magicSuffixes = magsuff;
+
+      const buildSelect = document.getElementById("build");
+      const opt = document.createElement("option");
+      opt.value = "__RANDOM__";
+      opt.textContent = "ランダム";
+      opt.selected = true;
+      buildSelect.appendChild(opt);
+      for (const key in buildTypes) {
+        const o = document.createElement("option");
+        o.value = key;
+        o.textContent = key;
+        buildSelect.appendChild(o);
+      }
+      document.getElementById("generateBtn").disabled = false;
+    });
   </script>
 </body>
 </html>
