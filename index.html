@@ -7,7 +7,239 @@
     body {
       font-family: sans-serif;
       margin: 20px;
+    }<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>ステータスジェネレーター（完全自動スキル生成・全ビルド対応）</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
     }
+    input, select, button, textarea {
+      font-size: 1rem;
+      margin: 5px;
+    }
+    .output {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      background: #f9f9f9;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>ステータスジェネレーター（全ビルド対応）</h1>
+
+  <label for="name">名前: </label>
+  <input type="text" id="name" placeholder="キャラクター名"><br>
+
+  <label for="rank">階級 (1以上): </label>
+  <input type="number" id="rank" min="1" value="1"><br>
+
+  <label for="build">ビルドタイプ: </label>
+  <select id="build"></select><br>
+
+  <button id="generateBtn" type="button" onclick="generate()" disabled>ステータス生成</button>
+
+  <div class="output" id="output"></div>
+
+  <script>
+    let titles = [], buildTypes = {}, formulas = {};
+    let magicPrefixes = [], magicSuffixes = [], meleePrefixes = [], meleeSuffixes = [];
+    let tankPrefixes = [], tankSuffixes = [], supportPrefixes = [], supportSuffixes = [];
+
+    function randomFrom(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function evalFormula(expr, S, rank) {
+      const random = (min, max) => {
+        const scaledMax = Math.floor(max * (1 + rank / 10));
+        return Math.floor(Math.random() * (scaledMax - min + 1)) + min;
+      };
+      try {
+        return Function("S", "random", `"use strict"; return (${expr});`)(S, random);
+      } catch (e) {
+        console.error("式の評価エラー:", expr, e);
+        return "計算エラー";
+      }
+    }
+
+    function chooseFormulaWeighted() {
+      const table = [
+        { name: "Burst", weight: 30 },
+        { name: "Balance", weight: 30 },
+        { name: "Control", weight: 20 },
+        { name: "Rage", weight: 15 },
+        { name: "Gamble", weight: 5 }
+      ];
+      const total = table.reduce((sum, item) => sum + item.weight, 0);
+      let roll = Math.random() * total;
+      for (const item of table) {
+        if (roll < item.weight) return item.name;
+        roll -= item.weight;
+      }
+    }
+
+    function generateRandomSkill(status, rank, buildType) {
+      const descTemplates = [
+        "{prefix}の{suffix}で敵を貫く。",
+        "{prefix}{suffix}を解き放ち、前方を一掃する。",
+        "{prefix}の力が宿る{suffix}を叩き込む。",
+        "強烈な{prefix}{suffix}で相手を打ちのめす。",
+        "{prefix}{suffix}を放ち、敵に重圧を与える。"
+      ];
+
+      let prefixes = [], suffixes = [];
+
+      if (buildType === "魔法型") {
+        prefixes = magicPrefixes;
+        suffixes = magicSuffixes;
+      } else if (buildType === "近接型") {
+        prefixes = meleePrefixes;
+        suffixes = meleeSuffixes;
+      } else if (buildType === "タンク型") {
+        prefixes = tankPrefixes;
+        suffixes = tankSuffixes;
+      } else if (buildType === "補助型") {
+        prefixes = supportPrefixes;
+        suffixes = supportSuffixes;
+      }
+
+      const prefix = randomFrom(prefixes);
+      const suffix = randomFrom(suffixes);
+      const name = prefix + suffix;
+      const description = randomFrom(descTemplates).replace("{prefix}", prefix).replace("{suffix}", suffix);
+      const range = randomFrom(["前方1マス", "前方3マス", "自分中心2マス", "直線4マス", "自分のみ"]);
+      const scalingOptions = ["MP", "ATK", "記憶力"];
+      const scaling = randomFrom(scalingOptions);
+      const formulaName = chooseFormulaWeighted();
+      const formula = formulas[formulaName];
+      const S = status[scaling] ?? 0;
+      const damage = evalFormula(formula.damage, S, rank);
+      const cost = evalFormula(formula.cost, S, rank);
+
+      return {
+        name, description, range, scaling, formula: formulaName, damage, cost
+      };
+    }
+
+    function generateStatus(rank, buildType) {
+      const basePoints = rank * 50;
+      const minPoints = Math.floor(basePoints * 0.8);
+      const maxPoints = Math.ceil(basePoints * 1.5);
+      const total = Math.floor(Math.random() * (maxPoints - minPoints + 1)) + minPoints;
+      const ratio = buildTypes[buildType];
+      const raw = {};
+      for (const key in ratio) raw[key] = Math.floor(total * ratio[key]);
+      const rest = total - Object.values(raw).reduce((a, b) => a + b, 0);
+      raw["記憶力"] += rest;
+      const final = {
+        HP: raw.HP * 3, MP: raw.MP * 3, ATK: raw.ATK, DEF: raw.DEF, DEX: raw.DEX,
+        記憶力: Math.floor(raw["記憶力"] / 5)
+      };
+      return { rank, totalPoints: total, buildType, rawDistribution: raw, finalStatus: final };
+    }
+
+    function generate() {
+      const name = document.getElementById("name").value.trim() || "名無し";
+      const rank = parseInt(document.getElementById("rank").value, 10);
+      let buildType = document.getElementById("build").value;
+      if (buildType === "__RANDOM__") {
+        const keys = Object.keys(buildTypes);
+        buildType = keys[Math.floor(Math.random() * keys.length)];
+      }
+
+      const result = generateStatus(rank, buildType);
+      const title = randomFrom(titles);
+      const output = document.getElementById("output");
+
+      let html = `👤 名前: ${name}、${title}
+🏷️ ビルドタイプ: ${result.buildType}
+🔹 階級: ${result.rank}
+🔸 使用ポイント: ${result.totalPoints}
+
+🎲 振り分け:
+`;
+      for (const [k, v] of Object.entries(result.rawDistribution)) html += `${k}: ${v}
+`;
+      html += `
+📊 最終ステータス:
+`;
+      for (const [k, v] of Object.entries(result.finalStatus)) html += `${k}: ${v}
+`;
+      html += `
+🧪 自動生成スキル:
+`;
+
+      for (let i = 0; i < result.finalStatus.記憶力; i++) {
+        const sk = generateRandomSkill(result.finalStatus, result.rank, buildType);
+        html += `✨ スキル名: <input type="text" value="${sk.name}">（${buildType}）
+`;
+        html += `📝 説明: <textarea rows="2" cols="40">${sk.description}</textarea>
+`;
+        html += `📏 射程: ${sk.range}
+`;
+        html += `⚖ スケーリング: ${sk.scaling}
+`;
+        html += `⚔ 威力: ${sk.damage} / 🔋 MP消費: ${sk.cost}（式: ${sk.formula}）
+
+`;
+      }
+
+      output.innerHTML = html;
+    }
+
+    Promise.all([
+      fetch("titles.json").then(res => res.json()),
+      fetch("buildTypes.json").then(res => res.json()),
+      fetch("formulas.json").then(res => res.json()),
+      fetch("prefixes.json").then(res => res.json()),
+      fetch("suffixes.json").then(res => res.json()),
+      fetch("melee_prefixes.json").then(res => res.json()),
+      fetch("melee_suffixes.json").then(res => res.json()),
+      fetch("tank_prefixes.json").then(res => res.json()),
+      fetch("tank_suffixes.json").then(res => res.json()),
+      fetch("support_prefixes.json").then(res => res.json()),
+      fetch("support_suffixes.json").then(res => res.json())
+    ]).then(([
+      t, b, f,
+      magp, mags, mp, ms,
+      tp, ts, sp, ss
+    ]) => {
+      titles = t;
+      buildTypes = b;
+      formulas = f;
+      magicPrefixes = magp;
+      magicSuffixes = mags;
+      meleePrefixes = mp;
+      meleeSuffixes = ms;
+      tankPrefixes = tp;
+      tankSuffixes = ts;
+      supportPrefixes = sp;
+      supportSuffixes = ss;
+
+      const buildSelect = document.getElementById("build");
+      const opt = document.createElement("option");
+      opt.value = "__RANDOM__";
+      opt.textContent = "ランダム";
+      opt.selected = true;
+      buildSelect.appendChild(opt);
+      for (const key in buildTypes) {
+        const o = document.createElement("option");
+        o.value = key;
+        o.textContent = key;
+        buildSelect.appendChild(o);
+      }
+
+      document.getElementById("generateBtn").disabled = false;
+    });
+  </script>
+</body>
+</html>
     input, select, button, textarea {
       font-size: 1rem;
       margin: 5px;
