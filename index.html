@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>ステータスジェネレーター（完全自動スキル生成・全ビルド対応）</title>
+  <meta charset="UTF-8">
+  <title>ステータスジェネレーター（全ビルド対応）</title>
   <style>
     body {
       font-family: sans-serif;
@@ -22,6 +22,7 @@
   </style>
 </head>
 <body>
+
   <h1>ステータスジェネレーター（全ビルド対応）</h1>
 
   <label for="name">名前: </label>
@@ -38,12 +39,15 @@
   <div class="output" id="output"></div>
 
   <script>
+    // 必要なJSファイルを読み込む
     let titles = [], buildTypes = {}, formulas = {};
-    let magicPrefixes = [], magicSuffixes = [], meleePrefixes = [], meleeSuffixes = [];
-    let tankPrefixes = [], tankSuffixes = [], supportPrefixes = [], supportSuffixes = [];
+    let magicPrefixes = [], magicSuffixes = [];
+    let meleePrefixes = [], meleeSuffixes = [];
+    let tankPrefixes = [], tankSuffixes = [];
+    let supportPrefixes = [], supportSuffixes = [];
 
-    function randomFrom(array) {
-      return array[Math.floor(Math.random() * array.length)];
+    function randomFrom(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
     }
 
     function evalFormula(expr, S, rank) {
@@ -54,24 +58,23 @@
       try {
         return Function("S", "random", `"use strict"; return (${expr});`)(S, random);
       } catch (e) {
-        console.error("式の評価エラー:", expr, e);
         return "計算エラー";
       }
     }
 
     function chooseFormulaWeighted() {
-      const table = [
+      const weights = [
         { name: "Burst", weight: 30 },
         { name: "Balance", weight: 30 },
         { name: "Control", weight: 20 },
         { name: "Rage", weight: 15 },
         { name: "Gamble", weight: 5 }
       ];
-      const total = table.reduce((sum, item) => sum + item.weight, 0);
-      let roll = Math.random() * total;
-      for (const item of table) {
-        if (roll < item.weight) return item.name;
-        roll -= item.weight;
+      const total = weights.reduce((a, b) => a + b.weight, 0);
+      let r = Math.random() * total;
+      for (let w of weights) {
+        if (r < w.weight) return w.name;
+        r -= w.weight;
       }
     }
 
@@ -85,7 +88,6 @@
       ];
 
       let prefixes = [], suffixes = [];
-
       if (buildType === "魔法型") {
         prefixes = magicPrefixes;
         suffixes = magicSuffixes;
@@ -105,29 +107,24 @@
       const name = prefix + suffix;
       const description = randomFrom(descTemplates).replace("{prefix}", prefix).replace("{suffix}", suffix);
       const range = randomFrom(["前方1マス", "前方3マス", "自分中心2マス", "直線4マス", "自分のみ"]);
-      const scalingOptions = ["MP", "ATK", "記憶力"];
-      const scaling = randomFrom(scalingOptions);
+      const scaling = randomFrom(["MP", "ATK", "記憶力"]);
       const formulaName = chooseFormulaWeighted();
       const formula = formulas[formulaName];
       const S = status[scaling] ?? 0;
       const damage = evalFormula(formula.damage, S, rank);
       const cost = evalFormula(formula.cost, S, rank);
 
-      return {
-        name, description, range, scaling, formula: formulaName, damage, cost
-      };
+      return { name, description, range, scaling, formula: formulaName, damage, cost };
     }
 
     function generateStatus(rank, buildType) {
-      const basePoints = rank * 50;
-      const minPoints = Math.floor(basePoints * 0.8);
-      const maxPoints = Math.ceil(basePoints * 1.5);
-      const total = Math.floor(Math.random() * (maxPoints - minPoints + 1)) + minPoints;
+      const base = rank * 50;
+      const total = Math.floor(Math.random() * (base * 1.5 - base * 0.8 + 1)) + Math.floor(base * 0.8);
       const ratio = buildTypes[buildType];
       const raw = {};
       for (const key in ratio) raw[key] = Math.floor(total * ratio[key]);
-      const rest = total - Object.values(raw).reduce((a, b) => a + b, 0);
-      raw["記憶力"] += rest;
+      const used = Object.values(raw).reduce((a, b) => a + b, 0);
+      raw["記憶力"] += total - used;
       const final = {
         HP: raw.HP * 3, MP: raw.MP * 3, ATK: raw.ATK, DEF: raw.DEF, DEX: raw.DEX,
         記憶力: Math.floor(raw["記憶力"] / 5)
@@ -141,47 +138,27 @@
       let buildType = document.getElementById("build").value;
       if (buildType === "__RANDOM__") {
         const keys = Object.keys(buildTypes);
-        buildType = keys[Math.floor(Math.random() * keys.length)];
+        buildType = randomFrom(keys);
       }
 
       const result = generateStatus(rank, buildType);
       const title = randomFrom(titles);
-      const output = document.getElementById("output");
-
-      let html = `👤 名前: ${name}、${title}
-🏷️ ビルドタイプ: ${result.buildType}
-🔹 階級: ${result.rank}
-🔸 使用ポイント: ${result.totalPoints}
-
-🎲 振り分け:
-`;
-      for (const [k, v] of Object.entries(result.rawDistribution)) html += `${k}: ${v}
-`;
-      html += `
-📊 最終ステータス:
-`;
-      for (const [k, v] of Object.entries(result.finalStatus)) html += `${k}: ${v}
-`;
-      html += `
-🧪 自動生成スキル:
-`;
+      let html = `👤 名前: ${name}、${title}\n🏷️ ビルドタイプ: ${result.buildType}\n🔹 階級: ${result.rank}\n🔸 使用ポイント: ${result.totalPoints}\n\n🎲 振り分け:\n`;
+      for (const [k, v] of Object.entries(result.rawDistribution)) html += `${k}: ${v}\n`;
+      html += `\n📊 最終ステータス:\n`;
+      for (const [k, v] of Object.entries(result.finalStatus)) html += `${k}: ${v}\n`;
+      html += `\n🧪 自動生成スキル:\n`;
 
       for (let i = 0; i < result.finalStatus.記憶力; i++) {
         const sk = generateRandomSkill(result.finalStatus, result.rank, buildType);
-        html += `✨ スキル名: <input type="text" value="${sk.name}">（${buildType}）
-`;
-        html += `📝 説明: <textarea rows="2" cols="40">${sk.description}</textarea>
-`;
-        html += `📏 射程: ${sk.range}
-`;
-        html += `⚖ スケーリング: ${sk.scaling}
-`;
-        html += `⚔ 威力: ${sk.damage} / 🔋 MP消費: ${sk.cost}（式: ${sk.formula}）
-
-`;
+        html += `✨ スキル名: <input type="text" value="${sk.name}">（${buildType}）\n`;
+        html += `📝 説明: <textarea rows="2" cols="40">${sk.description}</textarea>\n`;
+        html += `📏 射程: ${sk.range}\n`;
+        html += `⚖ スケーリング: ${sk.scaling}\n`;
+        html += `⚔ 威力: ${sk.damage} / 🔋 MP消費: ${sk.cost}（式: ${sk.formula}）\n\n`;
       }
 
-      output.innerHTML = html;
+      document.getElementById("output").innerHTML = html;
     }
 
     Promise.all([
@@ -197,9 +174,7 @@
       fetch("support_prefixes.json").then(res => res.json()),
       fetch("support_suffixes.json").then(res => res.json())
     ]).then(([
-      t, b, f,
-      magp, mags, mp, ms,
-      tp, ts, sp, ss
+      t, b, f, magp, mags, mp, ms, tp, ts, sp, ss
     ]) => {
       titles = t;
       buildTypes = b;
